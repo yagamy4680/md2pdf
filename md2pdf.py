@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import html
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -28,8 +27,10 @@ def configure_native_library_path() -> None:
 
 
 def default_title(markdown: str, fallback: str) -> str:
-    match = re.search(r"^#\\s+(.+?)\\s*$", markdown, re.MULTILINE)
-    return match.group(1) if match else fallback
+    for line in markdown.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return fallback
 
 
 def convert(input_path: Path, output_path: Path, css_path: Path) -> None:
