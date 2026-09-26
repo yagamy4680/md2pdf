@@ -40,7 +40,7 @@ def convert(input_path: Path, output_path: Path, css_path: Path) -> None:
     from weasyprint import CSS, HTML
 
     markdown = input_path.read_text(encoding="utf-8")
-    body = MarkdownIt("commonmark", {"html": False, "linkify": True}).render(markdown)
+    body = MarkdownIt("commonmark", {"html": False, "linkify": True}).enable("linkify").render(markdown)
     title = default_title(markdown, input_path.stem)
     document = f"""<!doctype html>
 <html lang="en">
