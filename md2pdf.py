@@ -76,31 +76,37 @@ def add_heading_ids(tokens: list[Any]) -> list[tuple[int, str, str]]:
     return headings
 
 
-def build_toc(headings: list[tuple[int, str, str]]) -> str:
-    items = "\n".join(
-        f'<li class="toc-level-{level}"><a href="#{html.escape(anchor, quote=True)}">'
-        f"{html.escape(text)}</a></li>"
-        for level, text, anchor in headings
-    )
+def build_toc(
+    headings: list[tuple[int, str, str]],
+    page_numbers: dict[str, int] | None = None,
+) -> str:
+    page_numbers = page_numbers or {}
+    items = []
+
+    for level, text, anchor in headings:
+        page = page_numbers.get(anchor, 0)
+        items.append(
+            f'<li class="toc-level-{level}"><a href="#{html.escape(anchor, quote=True)}">'
+            f'<span class="toc-text">{html.escape(text)}</span>'
+            '<span class="toc-leader"></span>'
+            f'<span class="toc-page">{page}</span>'
+            "</a></li>"
+        )
+
     return (
         '<nav class="toc" aria-label="Table of contents">\n'
         '  <div class="toc-title">Table of contents</div>\n'
-        f"  <ol>\n{items}\n  </ol>\n"
+        f"  <ol>\n{'\n'.join(items)}\n  </ol>\n"
         "</nav>\n"
     )
 
 
-def render_markdown(markdown: str, with_toc: bool) -> str:
+def prepare_markdown(markdown: str):
     from markdown_it import MarkdownIt
 
     md = MarkdownIt("commonmark", {"html": False, "linkify": True}).enable("linkify")
     tokens = md.parse(markdown)
-    if not with_toc:
-        return md.renderer.render(tokens, md.options, {})
-
     headings = add_heading_ids(tokens)
-    if not headings:
-        return md.renderer.render(tokens, md.options, {})
 
     insert_at = 0
     for index, token in enumerate(tokens):
@@ -108,21 +114,24 @@ def render_markdown(markdown: str, with_toc: bool) -> str:
             insert_at = index + 1
             break
 
+    return md, tokens, headings, insert_at
+
+
+def render_body(
+    md: Any,
+    tokens: list[Any],
+    headings: list[tuple[int, str, str]],
+    insert_at: int,
+    page_numbers: dict[str, int],
+) -> str:
     env: dict[str, Any] = {}
     before = md.renderer.render(tokens[:insert_at], md.options, env)
     after = md.renderer.render(tokens[insert_at:], md.options, env)
-    return before + build_toc(headings) + after
+    return before + build_toc(headings, page_numbers) + after
 
 
-def convert(input_path: Path, output_path: Path, css_path: Path, with_toc: bool) -> None:
-    configure_native_library_path()
-
-    from weasyprint import CSS, HTML
-
-    markdown = input_path.read_text(encoding="utf-8")
-    body = render_markdown(markdown, with_toc)
-    title = default_title(markdown, input_path.stem)
-    document = f"""<!doctype html>
+def make_document(title: str, body: str) -> str:
+    return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -134,11 +143,82 @@ def convert(input_path: Path, output_path: Path, css_path: Path, with_toc: bool)
 </html>
 """
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=document, base_url=str(input_path.parent.resolve())).write_pdf(
-        output_path,
-        stylesheets=[CSS(filename=str(css_path))],
+
+def collect_anchor_pages(document: Any, anchors: set[str]) -> dict[str, int]:
+    result: dict[str, int] = {}
+
+    for page_number, page in enumerate(document.pages, 1):
+        for anchor in page.anchors:
+            if anchor in anchors and anchor not in result:
+                result[anchor] = page_number
+
+    return result
+
+
+def convert(input_path: Path, output_path: Path, css_path: Path, with_toc: bool) -> None:
+    configure_native_library_path()
+
+    from markdown_it import MarkdownIt
+    from weasyprint import CSS, HTML
+
+    markdown = input_path.read_text(encoding="utf-8")
+    title = default_title(markdown, input_path.stem)
+    stylesheet = CSS(filename=str(css_path))
+    base_url = str(input_path.parent.resolve())
+
+    if not with_toc:
+        body = (
+            MarkdownIt("commonmark", {"html": False, "linkify": True})
+            .enable("linkify")
+            .render(markdown)
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        HTML(string=make_document(title, body), base_url=base_url).write_pdf(
+            output_path,
+            stylesheets=[stylesheet],
+        )
+        return
+
+    md, tokens, headings, insert_at = prepare_markdown(markdown)
+    if not headings:
+        body = md.renderer.render(tokens, md.options, {})
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        HTML(string=make_document(title, body), base_url=base_url).write_pdf(
+            output_path,
+            stylesheets=[stylesheet],
+        )
+        return
+
+    anchor_names = {anchor for _, _, anchor in headings}
+    page_numbers: dict[str, int] = {}
+
+    # Render until the TOC page numbers and the document layout agree.
+    for _ in range(3):
+        body = render_body(md, tokens, headings, insert_at, page_numbers)
+        document = HTML(string=make_document(title, body), base_url=base_url).render(
+            stylesheets=[stylesheet]
+        )
+        new_page_numbers = collect_anchor_pages(document, anchor_names)
+        if new_page_numbers == page_numbers:
+            break
+        page_numbers = new_page_numbers
+
+    body = render_body(md, tokens, headings, insert_at, page_numbers)
+    document = HTML(string=make_document(title, body), base_url=base_url).render(
+        stylesheets=[stylesheet]
     )
+
+    # One final check protects against a page boundary shifting after page numbers
+    # are inserted into the TOC.
+    final_page_numbers = collect_anchor_pages(document, anchor_names)
+    if final_page_numbers != page_numbers:
+        body = render_body(md, tokens, headings, insert_at, final_page_numbers)
+        document = HTML(string=make_document(title, body), base_url=base_url).render(
+            stylesheets=[stylesheet]
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    document.write_pdf(output_path)
 
 
 def main() -> int:
