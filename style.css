@@ -65,3 +65,38 @@ table { width: 100%; border-collapse: collapse; margin: 5pt 0 7pt; }
 th, td { border: 0.5pt solid var(--rule); padding: 3pt 4pt; vertical-align: top; }
 th { text-align: left; }
 img { max-width: 100%; height: auto; }
+
+.toc {
+  margin: 8pt 0 12pt;
+  break-after: page;
+}
+.toc-title {
+  margin-bottom: 4pt;
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 0.5pt solid var(--rule);
+  padding-bottom: 2pt;
+}
+.toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.toc li {
+  display: flex;
+  margin: 1.5pt 0;
+  break-inside: avoid;
+}
+.toc-level-3 { padding-left: 10pt; }
+.toc-level-4 { padding-left: 20pt; }
+.toc a {
+  display: flex;
+  width: 100%;
+  color: var(--ink);
+}
+.toc a::after {
+  content: leader(".") target-counter(attr(href), page);
+  margin-left: 4pt;
+  color: var(--muted);
+}
