@@ -38,7 +38,7 @@ Generate a table of contents:
 ./md2pdf.sh --toc document.md
 ```
 
-The TOC is generated from H2-H4 headings and inserted after the first H1. If the document has no H1, the TOC is inserted before the document body. TOC entries are clickable and include PDF page numbers.
+The TOC is generated from H2-H4 headings and inserted after the first H1. If the document has no H1, the TOC is inserted before the document body. TOC entries are clickable and include PDF page numbers. Page numbers are resolved from WeasyPrint's actual paginated layout using a multi-pass render, so they match the generated PDF.
 
 Use a custom stylesheet:
 
