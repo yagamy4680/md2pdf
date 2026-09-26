@@ -84,7 +84,6 @@ img { max-width: 100%; height: auto; }
   list-style: none;
 }
 .toc li {
-  display: flex;
   margin: 1.5pt 0;
   break-inside: avoid;
 }
@@ -93,10 +92,18 @@ img { max-width: 100%; height: auto; }
 .toc a {
   display: flex;
   width: 100%;
+  align-items: baseline;
   color: var(--ink);
 }
-.toc a::after {
-  content: leader(".") target-counter(attr(href), page);
-  margin-left: 4pt;
+.toc-text { min-width: 0; }
+.toc-leader {
+  flex: 1;
+  margin: 0 4pt 2pt;
+  border-bottom: 0.5pt dotted var(--rule);
+}
+.toc-page {
+  min-width: 2em;
+  text-align: right;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
