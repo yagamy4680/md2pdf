@@ -93,10 +93,11 @@ def build_toc(
             "</a></li>"
         )
 
+    toc_items = "\n".join(items)
     return (
         '<nav class="toc" aria-label="Table of contents">\n'
         '  <div class="toc-title">Table of contents</div>\n'
-        f"  <ol>\n{'\n'.join(items)}\n  </ol>\n"
+        f"  <ol>\n{toc_items}\n  </ol>\n"
         "</nav>\n"
     )
 
