@@ -32,16 +32,30 @@ Choose the output path explicitly:
 ./md2pdf.sh document.md output.pdf
 ```
 
+Generate a table of contents:
+
+```bash
+./md2pdf.sh --toc document.md
+```
+
+The TOC is generated from H2-H4 headings and inserted after the first H1. If the document has no H1, the TOC is inserted before the document body. TOC entries are clickable and include PDF page numbers.
+
 Use a custom stylesheet:
 
 ```bash
 ./md2pdf.sh --css custom.css document.md output.pdf
 ```
 
+Options can be combined:
+
+```bash
+./md2pdf.sh --toc --css custom.css document.md output.pdf
+```
+
 You can also call the Python script directly through `uv`:
 
 ```bash
-uv run python md2pdf.py document.md output.pdf
+uv run python md2pdf.py --toc document.md output.pdf
 ```
 
 The first `uv run` resolves the two project dependencies and creates/updates `uv.lock`.
@@ -50,6 +64,8 @@ The first `uv run` resolves the two project dependencies and creates/updates `uv
 
 - CommonMark Markdown rendering
 - Automatic links for bare URLs
+- Optional TOC generated from H2-H4 headings
+- Clickable TOC entries with PDF page numbers
 - A4 PDF output with page numbers
 - Relative local images/files resolved from the Markdown file's directory
 - Optional custom CSS
